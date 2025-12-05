@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     LOCAL_LLM_URL: str = "http://localhost:11434/v1"
 
-    DEFAULT_LLM_PROVIDER: str = "openai"  # Can be "openai", "gemini", "groq", or "local"
+    DEFAULT_LLM_PROVIDER: str = "groq"  # Can be "openai", "gemini", "groq", or "local"
 
     class Config:
         env_file = ".env"
