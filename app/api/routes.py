@@ -21,14 +21,14 @@ def ingest_data_task():
     try:
         loader = container.document_loader
         documents = loader.load_documents()
-        
+
         if not documents:
             logger.warning("No documents found in data/ directory.")
             return
 
         chunker = container.semantic_chunker
         chunked_docs = chunker.chunk_documents(documents)
-        
+
         container.retriever.index_documents(chunked_docs)
         logger.info(f"Indexed {len(chunked_docs)} chunks successfully.")
     except Exception as e:
@@ -42,7 +42,7 @@ async def ingest_data(background_tasks: BackgroundTasks):
 
 @router.post("/query", response_model=QueryResponse)
 async def query_llm(
-    request: QueryRequest, 
+    request: QueryRequest,
     chat_service: ChatService = Depends(get_chat_service)
 ):
     return await chat_service.process_query(request)

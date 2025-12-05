@@ -12,7 +12,7 @@ class ChatService:
 
     async def process_query(self, request: QueryRequest) -> QueryResponse:
         start_time = time.time()
-        logger.info(f"Processing query: {request.text} | Complexity: {request.complexity}")
+        logger.info(f"Processing query: {request.text}")
 
         # 1. Retrieve context
         try:
@@ -24,13 +24,13 @@ class ChatService:
             # Fallback to empty context
             context = ""
 
-        # 2. Route to LLM
+        # 2. Get LLM provider
         try:
-            llm_provider = self.llm_router.route(request.complexity, request.privacy_level)
-            logger.info(f"Routed to LLM provider: {llm_provider.__class__.__name__}")
+            llm_provider = self.llm_router.get_provider()
+            logger.info(f"Selected LLM provider: {llm_provider.__class__.__name__}")
         except Exception as e:
-            logger.error(f"Routing failed: {e}")
-            raise HTTPException(status_code=500, detail=f"Routing failed: {str(e)}")
+            logger.error(f"Provider selection failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Provider selection failed: {str(e)}")
 
         # 3. Generate response
         try:

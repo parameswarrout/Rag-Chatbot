@@ -1,11 +1,11 @@
 # RAG Chatbot Platform
 
-A production-ready Retrieval-Augmented Generation (RAG) platform for small businesses to deploy custom AI chatbots with their own data. Combines hybrid retrieval techniques with intelligent LLM routing based on query complexity and privacy requirements, with comprehensive logging and monitoring for enterprise use.
+A production-ready Retrieval-Augmented Generation (RAG) platform for small businesses to deploy custom AI chatbots with their own data. Combines hybrid retrieval techniques with configurable LLM provider selection for optimal cost and performance, with comprehensive logging and monitoring for enterprise use.
 
 ## Features
 
 - **Multi-Modal Document Ingestion**: Supports PDF, CSV, DOCX, and DOC files with security validation
-- **Intelligent LLM Routing**: Routes queries based on complexity (simple/moderate/complex) and privacy (public/private) requirements
+- **Configurable LLM Provider**: Select the appropriate LLM provider based on your needs (OpenAI, Google Gemini, Groq, Local Ollama)
 - **Hybrid Retrieval System**: Combines semantic search and traditional keyword search for optimal context retrieval
 - **Multi-Provider Support**: Seamlessly integrates with OpenAI, Google Gemini, Groq, and Local Ollama
 - **Semantic Chunking**: Intelligent document chunking for better context retrieval
@@ -20,11 +20,11 @@ A production-ready Retrieval-Augmented Generation (RAG) platform for small busin
 
 The system consists of several key components:
 
-### 1. LLM Routing System
-- Intelligent routing based on query complexity (simple/moderate/complex) and privacy (public/private) requirements
+### 1. LLM Provider System
+- Configurable provider selection via settings
 - Supports OpenAI, Google Gemini, Groq, and Local Ollama providers
-- Automatic routing to local models for private queries ensuring data security
-- Performance optimization based on query complexity
+- Simple configuration-based provider selection
+- Cost optimization based on selected provider
 
 ### 2. Dependency Injection Container
 - Centralized service management with DI container
@@ -83,7 +83,7 @@ GROQ_API_KEY=your_groq_api_key
 GEMINI_API_KEY=your_gemini_api_key
 OPENAI_API_KEY=your_openai_api_key
 LOCAL_LLM_URL=http://localhost:11434/v1  # Default for Ollama
-DEFAULT_LLM_PROVIDER=openai  # Can be "openai", "gemini", "groq", or "local"
+DEFAULT_LLM_PROVIDER=groq  # Can be "openai", "gemini", "groq", or "local"
 ```
 
 The default LLM provider can be configured in `app/core/config.py`, but can also be overridden via the environment variable. For production deployments, consider using "local" to reduce costs and maintain data privacy.
@@ -127,25 +127,19 @@ The system will automatically detect file types, validate them for security, and
 
 ### 2. Query Interface
 
-Once data is ingested, you can query the system with complexity and privacy settings:
+Once data is ingested, you can query the system:
 
 ```bash
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "What is the main topic of the documents?",
-    "complexity": "simple",
-    "privacy_level": "public",
-    "max_cost": null
+    "text": "What is the main topic of the documents?"
   }'
 ```
 
 ### Query Parameters
 
 - `text` (required): The query text
-- `complexity`: "simple", "moderate", or "complex" - determines which LLM provider to use
-- `privacy_level`: "public" or "private" - routes to cloud providers or local models
-- `max_cost`: Optional maximum cost constraint
 
 ## API Endpoints
 
@@ -204,10 +198,10 @@ rag-agent/
 
 ## Production Features
 
-### Intelligent Routing
-- Complexity-based routing to appropriate LLM providers
-- Privacy-aware routing to keep sensitive data secure
-- Performance optimization based on query characteristics
+### Configuration Management
+- Simple configuration-based LLM provider selection
+- Cost optimization based on selected provider
+- Easy switching between different LLM providers
 
 ### Architecture & Maintainability
 - Dependency injection for better testability and modularity
@@ -217,7 +211,7 @@ rag-agent/
 ### Monitoring & Logging
 - Colored structured logging with timestamps
 - Performance metrics and response time tracking
-- Query complexity and routing logging
+- Provider selection logging
 - Comprehensive error logging for debugging
 
 ### Security
@@ -236,25 +230,13 @@ pytest
 
 ## Business Benefits
 
-- **Cost Effective**: Intelligently route simple queries to cost-effective providers
-- **Data Privacy**: Automatically use local models for sensitive/private queries
-- **Smart Processing**: Route complex queries to powerful models while simple ones use efficient providers
+- **Cost Effective**: Select cost-effective local models to minimize operational costs
+- **Data Privacy**: Use local models to maintain complete control over sensitive data
+- **Simple Configuration**: Easy provider selection through configuration settings
 - **Easy Setup**: Simple deployment process designed for non-technical users
 - **Scalable**: Architecture designed to grow with your business needs
 - **Customizable**: Adapt the chatbot to your specific business requirements
 - **Monitoring Ready**: Comprehensive logging for business analytics and optimization
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Support
 
