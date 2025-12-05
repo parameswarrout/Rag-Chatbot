@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "rag-agent"
+version = "0.1.0"
+description = "RAG Orchestration Agent"
+authors = ["Parameswar"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.109.0"
+uvicorn = "^0.27.0"
+pydantic-settings = "^2.1.0"
+httpx = "^0.26.0"
+openai = "^1.10.0"
+google-generativeai = "^0.3.2"
+python-dotenv = "^1.0.1"
+langchain = "^0.1.0"
+langchain-community = "^0.0.10"
+sentence-transformers = "^2.2.2"
+faiss-cpu = "^1.7.4"
+rank_bm25 = "^0.2.2"
+pypdf = "^3.17.0"
+python-docx = "^1.1.0"
+pandas = "^2.1.0"
+langchain-huggingface = "^0.0.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

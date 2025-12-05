@@ -1,0 +1,128 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+env.bak/
+.ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vs/
+.atom/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.dev
+.env.test
+.env.production
+.env.staging
+
+# Data
+data/index/
+*.csv  # If you have temporary CSV files you don't want to commit
+*.pdf  # Exclude PDFs unless they're essential test files
+*.docx  # Exclude document files unless essential
+
+# Local configuration
+config.local.py
+settings_local.py
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.cov/
+.coverage.*
+coverage.xml
+*.cover
+
+# FastAPI and uvicorn
+uvicorn.log
+.asgi/
+.hypothesis/
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Dependencies that might be locally installed
+.pth
+
+# Local runtimes and temporary files
+*.tmp
+*.temp
+runtime/
+
+# Docker (if you have local docker-related temp files)
+.dockerenv
+.dockercfg
+
+# Poetry (keep poetry.lock but ignore some cache)
+.cache/
+
+# Local model files that might be large
+models/
+*.bin
+*.pt
+*.pth
+*.ckpt
+
+# Local backups
+*.bak
+*.backup
+backup/
+
+# Local run files
+*.run
+*.pid
+
+# Ignore the logs directory if it exists
+logs/
+
+# Ignore any compiled Python files in the project
+**/__pycache__/
+**/*.pyc
+**/*.pyo

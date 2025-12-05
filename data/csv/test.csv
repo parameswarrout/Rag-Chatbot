@@ -1,0 +1,111 @@
+Question,Answer
+What is a transformer model?,A transformer is a neural network architecture that uses self-attention to process input sequences in parallel.
+What is a vector database?,A vector database stores high-dimensional embeddings for similarity search instead of traditional exact match queries.
+What is FAISS?,FAISS is a library by Meta for efficient similarity search and clustering of dense vectors.
+What is RAG?,RAG (Retrieval-Augmented Generation) is an AI technique where a model retrieves relevant external information before generating answers.
+What is LangChain?,LangChain is a framework for building applications powered by language models and external data sources.
+What is an embedding?,An embedding is a numeric representation of text, images, or objects in a high-dimensional vector space.
+What is cosine similarity?,Cosine similarity measures how similar two vectors are by calculating the cosine of the angle between them.
+What is semantic search?,Semantic search retrieves results based on meaning rather than exact keyword matching.
+What is BM25?,BM25 is a ranking algorithm used in search engines to estimate query–document relevance.
+What is a GPU?,A GPU is a specialized processor designed to accelerate parallel operations, especially for AI and graphics workloads.
+What is CUDA?,CUDA is NVIDIA’s parallel computing platform for running code on GPUs.
+What is tokenization?,Tokenization is the process of splitting text into smaller units called tokens.
+What is a token?,A token is a piece of text such as a word, subword, or character used by language models.
+What is a large language model?,A large language model is a neural network trained on massive datasets to understand and generate human-like text.
+What is a knowledge base?,A knowledge base is a structured repository of information that a system can query for answers.
+What is an index in FAISS?,A FAISS index organizes vectors to enable fast similarity search.
+What is a prompt?,A prompt is the input text given to a language model to generate a response.
+What is prompt engineering?,Prompt engineering is the practice of designing prompts to optimize LLM outputs.
+What is few-shot learning?,Few-shot learning enables models to perform tasks with a small number of examples.
+What is zero-shot learning?,Zero-shot learning allows models to perform tasks without seeing any labeled examples.
+What is embedding dimension?,Embedding dimension refers to the number of features in a vector representation.
+What is a GPU cluster?,A GPU cluster is a group of interconnected GPUs used for large-scale AI computation.
+What is an API?,An API is a set of rules and protocols for software components to communicate.
+What is FastAPI?,FastAPI is a Python framework for building high-performance web APIs.
+What is latency?,Latency is the time it takes to process a request and return a response.
+What is throughput?,Throughput is the number of operations a system can handle per unit time.
+What is distributed computing?,Distributed computing splits tasks across multiple machines to improve performance.
+What is a feature vector?,A feature vector is a numeric representation of characteristics used for machine learning.
+What is MLOps?,MLOps is the practice of automating and managing the lifecycle of machine learning models.
+What is vectorization?,Vectorization converts data into numerical vectors for AI processing.
+What is a neural network?,A neural network is a machine learning model inspired by the human brain's structure.
+What is self-attention?,Self-attention computes relationships between tokens within the same sequence.
+What is cross-attention?,Cross-attention matches tokens from one sequence with tokens in another.
+What is a dataset?,A dataset is a structured collection of data used to train or evaluate models.
+What is supervised learning?,Supervised learning trains models on labeled data.
+What is unsupervised learning?,Unsupervised learning detects patterns in data without labels.
+What is reinforcement learning?,Reinforcement learning trains agents through rewards and penalties.
+What is RLHF?,RLHF stands for Reinforcement Learning from Human Feedback.
+What is overfitting?,Overfitting occurs when a model performs well on training data but poorly on unseen data.
+What is underfitting?,Underfitting happens when a model is too simple to learn patterns from data.
+What is a loss function?,A loss function measures error between predictions and actual values.
+What is gradient descent?,Gradient descent is an optimization technique for minimizing loss functions.
+What is backpropagation?,Backpropagation computes gradients to update model weights.
+What is a checkpoint?,A checkpoint is a saved model state used for resuming or deploying training.
+What is batch size?,Batch size represents the number of samples processed before updating model weights.
+What is epoch?,An epoch is one full pass through the training dataset.
+What is fine-tuning?,Fine-tuning adapts a pre-trained model to a specific task or domain.
+What is quantization?,Quantization reduces model precision to speed up inference and lower memory usage.
+What is pruning?,Pruning removes redundant model weights to reduce size and complexity.
+What is ONNX?,ONNX is an open format to represent machine learning models for interoperability.
+What is inference?,Inference is the process of using a trained model to generate predictions.
+What is transformers library?,Transformers is a Hugging Face library for NLP model development.
+What is PyTorch?,PyTorch is a deep learning framework that provides dynamic computation graphs.
+What is TensorFlow?,TensorFlow is an open-source machine learning framework developed by Google.
+What is OpenAI?,OpenAI is an AI research organization known for GPT and other LLMs.
+What is GPT?,GPT is a generative pre-trained transformer language model developed by OpenAI.
+What is LoRA?,LoRA is a low-rank adaptation technique for efficiently fine-tuning large models.
+What is a vector store?,A vector store is a specialized database for storing and querying embeddings.
+What is Milvus?,Milvus is an open-source vector database optimized for similarity search.
+What is Pinecone?,Pinecone is a managed vector database service for production search applications.
+What is Qdrant?,Qdrant is an open-source vector database that supports semantic search.
+What is Weaviate?,Weaviate is a vector database with built-in semantic search and knowledge graph features.
+What is ANN search?,ANN (Approximate Nearest Neighbor) search finds closest vectors efficiently without exact matching.
+What is HNSW?,HNSW is a graph-based algorithm for fast nearest neighbor search.
+What is a shard?,A shard is a partition of data stored separately to improve scalability.
+What is replication?,Replication creates copies of data to improve availability and fault tolerance.
+What is cloud computing?,Cloud computing delivers processing power, storage, and services over the internet.
+What is Kubernetes?,Kubernetes is a system for deploying and managing containerized applications.
+What is a container?,A container packages an application and its dependencies for consistent execution.
+What is Docker?,Docker is a containerization platform for building and running containers.
+What is a microservice?,A microservice is a small, independent service that performs a specific function.
+What is CI/CD?,CI/CD automates software integration, testing, and deployment.
+What is a cache?,A cache stores frequently accessed data for faster retrieval.
+What is Redis?,Redis is an in-memory key-value data store used for caching and message queues.
+What is Elasticsearch?,Elasticsearch is a search engine for full-text search and analytics.
+What is a REST API?,A REST API uses HTTP methods and structured endpoints for client–server communication.
+What is gRPC?,gRPC is a high-performance RPC framework using Protocol Buffers.
+What is JSON?,JSON is a lightweight data format for exchanging structured data.
+What is YAML?,YAML is a human-readable configuration format.
+What is a schema?,A schema defines the structure of data in a database.
+What is SQL?,SQL is a language for managing and querying structured data.
+What is NoSQL?,NoSQL databases store unstructured or semi-structured data.
+What is a knowledge graph?,A knowledge graph represents data as nodes and relationships.
+What is retrieval?,Retrieval is the process of fetching relevant information for a query.
+What is a context window?,A context window is the maximum number of tokens a model can process at once.
+What is hallucination in LLMs?,Hallucination occurs when a model generates answers that are incorrect or fabricated.
+What is embedding model?,An embedding model converts input data into dense vector representations.
+What is hybrid search?,Hybrid search combines keyword search with vector similarity for better relevance.
+What is document chunking?,Document chunking splits large text into smaller pieces for efficient retrieval.
+What is an LLM router?,An LLM router selects which model or backend to use based on context and cost.
+What is a tokenizer?,A tokenizer converts raw text into tokens usable by models.
+What is perplexity?,Perplexity measures how well a language model predicts text sequences.
+What is dropout?,Dropout randomly disables neurons during training to reduce overfitting.
+What is attention head?,An attention head is a component in transformers that processes attention computations in parallel.
+What is multi-head attention?,Multi-head attention combines multiple attention heads to capture different relationships.
+What is positional encoding?,Positional encoding injects sequence order information into transformer inputs.
+What is a decoder?,A decoder generates output tokens from processed embeddings.
+What is an encoder?,An encoder converts input tokens into contextual embeddings.
+What is a hybrid RAG?,Hybrid RAG combines keyword search, vector search, and LLMs for improved retrieval.
+What is an inference engine?,An inference engine executes trained models for prediction tasks.
+What is semantic embedding?,Semantic embedding captures contextual meaning of text in numerical form.
+What is context length?,Context length is the number of tokens a model can consider simultaneously.
+What is retrieval latency?,Retrieval latency is the delay between sending a query and receiving retrieved chunks.
+What is chunk overlap?,Chunk overlap is the shared number of tokens between document chunks to preserve semantic continuity.
+What is prompt template?,A prompt template structures inputs to improve response quality.
+What is grounding?,Grounding ensures AI output aligns with real facts retrieved from trusted sources.
+What is vector normalization?,Vector normalization scales a vector to unit length for similarity comparison.
+What is ANN index?,An ANN index organizes embeddings for approximate similarity search.
+What is cold start in RAG?,Cold start occurs when a RAG system has insufficient embeddings for initial queries.
+What is a knowledge retriever?,A knowledge retriever fetches relevant documents based on query embeddings.
