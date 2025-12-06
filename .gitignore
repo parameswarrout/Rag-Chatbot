@@ -104,7 +104,7 @@ runtime/
 .cache/
 
 # Local model files that might be large
-models/
+
 *.bin
 *.pt
 *.pth

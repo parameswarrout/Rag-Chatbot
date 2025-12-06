@@ -14,6 +14,9 @@ Do not use outside knowledge.
 class GroqLLM(LLMProvider):
     def __init__(self):
         self.api_key = settings.GROQ_API_KEY
+        if not self.api_key:
+            raise ValueError("GROQ_API_KEY is not set. Please add it to your .env file.")
+
         self.client = AsyncOpenAI(
             api_key=self.api_key,
             base_url="https://api.groq.com/openai/v1"

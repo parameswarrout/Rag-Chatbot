@@ -4,24 +4,27 @@ from app.core.logging import logger
 
 class LLMRouter:
     def __init__(self):
-        self.groq = GroqLLM()
-        self.gemini = GeminiLLM()
-        self.openai = OpenAILLM()
-        self.local = LocalLLM()
+        self._providers = {}
 
     def get_provider(self):
         """Get the configured LLM provider from settings."""
         provider_name = settings.DEFAULT_LLM_PROVIDER
-        logger.info(f"Selected LLM provider: {provider_name}")
-
-        if provider_name == "groq":
-            return self.groq
-        elif provider_name == "gemini":
-            return self.gemini
-        elif provider_name == "openai":
-            return self.openai
-        elif provider_name == "local":
-            return self.local
-        else:
-            # Default to openai if invalid provider specified
-            return self.openai
+        
+        if provider_name not in self._providers:
+            logger.info(f"Initializing LLM provider: {provider_name}")
+            if provider_name == "groq":
+                self._providers[provider_name] = GroqLLM()
+            elif provider_name == "gemini":
+                self._providers[provider_name] = GeminiLLM()
+            elif provider_name == "openai":
+                self._providers[provider_name] = OpenAILLM()
+            elif provider_name == "local":
+                self._providers[provider_name] = LocalLLM()
+            else:
+                # Default fallback
+                logger.warning(f"Unknown provider '{provider_name}', falling back to OpenAI")
+                if "openai" not in self._providers:
+                     self._providers["openai"] = OpenAILLM()
+                return self._providers["openai"]
+                
+        return self._providers[provider_name]
