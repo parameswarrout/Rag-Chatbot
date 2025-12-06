@@ -7,7 +7,7 @@ from app.services.llm.base import LLMProvider
 
 STRICT_SYSTEM_PROMPT = """You are a helpful AI assistant.
 Answer the user's question strictly based on the provided context below.
-If the answer is not present in the context, state "I don't know" or "The answer is not in the provided documents."
+If the answer is not present in the context, strictly reply with: "I do not know the answer. Please connect to a representative for further assistance."
 Do not use outside knowledge.
 """
 
@@ -39,6 +39,23 @@ class GroqLLM(LLMProvider):
         )
         return response.choices[0].message.content
 
+    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
+        if context:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
+        else:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
+            
+        stream = await self.client.chat.completions.create(
+            model="openai/gpt-oss-20b", 
+            messages=[{"role": "user", "content": full_prompt}],
+            temperature=0.7,
+            stream=True
+        )
+        async for chunk in stream:
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
+
 class GeminiLLM(LLMProvider):
     def __init__(self):
         genai.configure(api_key=settings.GEMINI_API_KEY)
@@ -52,6 +69,16 @@ class GeminiLLM(LLMProvider):
 
         response = await self.model.generate_content_async(full_prompt)
         return response.text
+
+    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
+        # Gemini specific streaming
+        if context:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
+        else:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
+            
+        async for chunk in await self.model.generate_content_async(full_prompt, stream=True):
+            yield chunk.text
 
 class OpenAILLM(LLMProvider):
     def __init__(self):
@@ -68,6 +95,22 @@ class OpenAILLM(LLMProvider):
             messages=[{"role": "user", "content": full_prompt}]
         )
         return response.choices[0].message.content
+
+    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
+        if context:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
+        else:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
+            
+        stream = await self.client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[{"role": "user", "content": full_prompt}],
+            stream=True
+        )
+        async for chunk in stream:
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
 
 class LocalLLM(LLMProvider):
     def __init__(self):
@@ -88,3 +131,14 @@ class LocalLLM(LLMProvider):
         })
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
+
+    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
+        # Local LLM might simpler
+        if context:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
+        else:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
+            
+        # Simplified: just yield the full text for now since httpx streaming for local setups varies
+        # or implement assuming OpenAI format if possible, but keeping it safe:
+        yield await self.generate(prompt, context)

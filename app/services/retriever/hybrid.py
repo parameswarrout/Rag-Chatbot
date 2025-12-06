@@ -32,8 +32,8 @@ class EnsembleRetriever:
         return all_docs
 
 class HybridRetriever(BaseRetriever):
-    def __init__(self):
-        self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    def __init__(self, embeddings: HuggingFaceEmbeddings):
+        self.embeddings = embeddings
         self.vector_store = None
         self.bm25_retriever = None
         self.ensemble_retriever = None
@@ -105,9 +105,10 @@ class HybridRetriever(BaseRetriever):
         except Exception as e:
             logger.error(f"Failed to load index: {e}")
 
-    async def retrieve(self, query: str, top_k: int = 3) -> List[str]:
+    async def retrieve(self, query: str, top_k: int = 3) -> List[Document]:
         if not self.ensemble_retriever:
-            return ["No documents indexed. Please ingest data first."]
+            # Return empty list instead of a string list with error message for better type safety
+            return []
         
         docs = self.ensemble_retriever.invoke(query)
-        return [doc.page_content for doc in docs[:top_k]]
+        return docs[:top_k]

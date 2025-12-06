@@ -8,7 +8,7 @@ router = APIRouter()
 
 def get_chat_service():
     """Dependency provider for ChatService"""
-    return ChatService(container.llm_router, container.retriever)
+    return ChatService(container.llm_router, container.retriever, container.reranker)
 
 @router.get("/health", status_code=200)
 async def health_check():
@@ -56,3 +56,19 @@ async def query_llm(
     except Exception as e:
         logger.error(f"Unexpected error in query_llm: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+from fastapi.responses import StreamingResponse
+from app.models.schemas import ChatStreamRequest
+
+@router.post("/chat", status_code=200)
+async def chat_stream(
+    request: ChatStreamRequest,
+    chat_service: ChatService = Depends(get_chat_service)
+):
+    """
+    Streaming chat endpoint with history support.
+    """
+    return StreamingResponse(
+        chat_service.stream_chat(request), 
+        media_type="text/event-stream"
+    )
