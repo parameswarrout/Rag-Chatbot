@@ -30,16 +30,38 @@ class CustomFormatter(logging.Formatter):
 
 def setup_logging():
     """Configures the root logger."""
+    from app.core.config import settings
+    import os
+
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(CustomFormatter())
-    
-    # Avoid adding multiple handlers if setup is called multiple times
-    if not logger.handlers:
-        logger.addHandler(handler)
-        
+    # removing default handlers to avoid duplication if re-setup
+    if logger.handlers:
+        logger.handlers.clear()
+
+    # 1. Console Handler (Conditional)
+    if settings.LOG_TO_CONSOLE:
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(CustomFormatter())
+        logger.addHandler(console_handler)
+
+    # 2. File Handler (Always, if configured)
+    if settings.LOG_DIR and settings.LOG_FILENAME:
+        try:
+            if not os.path.exists(settings.LOG_DIR):
+                os.makedirs(settings.LOG_DIR)
+            
+            file_path = os.path.join(settings.LOG_DIR, settings.LOG_FILENAME)
+            # Use a standard formatter for files (no colors)
+            file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            file_handler = logging.FileHandler(file_path)
+            file_handler.setFormatter(file_formatter)
+            logger.addHandler(file_handler)
+        except Exception as e:
+            # Fallback to printing to stderr if file logging fails (so we don't crash)
+            sys.stderr.write(f"Failed to setup file logging: {e}\n")
+
     # Set level for some noisy libraries
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)

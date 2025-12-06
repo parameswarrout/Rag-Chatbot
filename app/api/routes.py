@@ -10,7 +10,7 @@ def get_chat_service():
     """Dependency provider for ChatService"""
     return ChatService(container.llm_router, container.retriever)
 
-@router.get("/health")
+@router.get("/health", status_code=200)
 async def health_check():
     logger.debug("Health check requested.")
     return {"status": "ok"}
@@ -34,15 +34,25 @@ def ingest_data_task():
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")
 
-@router.post("/ingest")
+@router.post("/ingest", status_code=202)
 async def ingest_data(background_tasks: BackgroundTasks):
     """Trigger data ingestion in the background."""
-    background_tasks.add_task(ingest_data_task)
-    return {"message": "Ingestion started in background"}
+    try:
+        background_tasks.add_task(ingest_data_task)
+        return {"message": "Ingestion started in background"}
+    except Exception as e:
+        logger.error(f"Failed to trigger ingestion: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger ingestion: {str(e)}")
 
-@router.post("/query", response_model=QueryResponse)
+@router.post("/query", response_model=QueryResponse, status_code=200)
 async def query_llm(
     request: QueryRequest,
     chat_service: ChatService = Depends(get_chat_service)
 ):
-    return await chat_service.process_query(request)
+    try:
+        return await chat_service.process_query(request)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in query_llm: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     LOCAL_LLM_URL: str = "http://localhost:11434/v1"
 
     DEFAULT_LLM_PROVIDER: str = "groq"  # Can be "openai", "gemini", "groq", or "local"
+    
+    # Logging Configuration
+    LOG_TO_CONSOLE: bool = True
+    LOG_DIR: str = "logs"
+    LOG_FILENAME: str = "app.log"
 
     class Config:
         env_file = ".env"
