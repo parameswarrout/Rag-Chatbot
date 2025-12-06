@@ -46,6 +46,7 @@ env.bak/
 ehthumbs.db
 Thumbs.db
 desktop.ini
+poetry.lock
 
 # Logs
 logs/
