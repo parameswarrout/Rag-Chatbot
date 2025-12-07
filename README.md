@@ -60,8 +60,8 @@ The system consists of several key components:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/rag-agent.git
-   cd rag-agent
+   git clone https://github.com/parameswarrout/Rag-Chatbot.git
+   cd Rag-Chatbot
    ```
 
 2. Install dependencies:
