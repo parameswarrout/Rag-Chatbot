@@ -5,6 +5,7 @@ class QueryRequest(BaseModel):
     text: str
     session_id: Optional[str] = None
     mode: Literal["fast", "simple", "advanced"] = "advanced"
+    provider: Optional[Literal["groq", "local", "gemini", "openai"]] = None
 
 class Citation(BaseModel):
     content: str
@@ -25,4 +26,5 @@ class Message(BaseModel):
 class ChatStreamRequest(BaseModel):
     messages: list[Message]
     mode: Literal["fast", "simple", "advanced"] = "advanced"
+    provider: Optional[Literal["groq", "local", "gemini", "openai"]] = None
     stream: bool = True

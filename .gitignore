@@ -127,3 +127,7 @@ logs/
 **/__pycache__/
 **/*.pyc
 **/*.pyo
+
+
+node_modules
+package-lock.json

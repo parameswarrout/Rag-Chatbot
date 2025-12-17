@@ -8,7 +8,7 @@ router = APIRouter()
 
 def get_chat_service():
     """Dependency provider for ChatService"""
-    return ChatService(container.llm_router, container.retriever, container.reranker)
+    return ChatService(container.llm_router, container.retriever)
 
 @router.get("/health", status_code=200)
 async def health_check():
@@ -72,3 +72,19 @@ async def chat_stream(
         chat_service.stream_chat(request), 
         media_type="text/event-stream"
     )
+
+@router.get("/sessions", status_code=200)
+async def get_sessions(chat_service: ChatService = Depends(get_chat_service)):
+    """List all active session IDs."""
+    return {"sessions": chat_service.memory_manager.get_all_sessions()}
+
+@router.get("/sessions/{session_id}", status_code=200)
+async def get_session_history(
+    session_id: str,
+    chat_service: ChatService = Depends(get_chat_service)
+):
+    """Get history for a specific session."""
+    history = chat_service.memory_manager.get_raw_history(session_id)
+    if not history:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"history": history}

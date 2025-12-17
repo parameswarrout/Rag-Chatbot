@@ -9,9 +9,11 @@ class LLMRouter:
         self.openai = None
         self.local = None
 
-    def get_provider(self):
-        """Get the configured LLM provider from settings."""
-        provider_name = settings.DEFAULT_LLM_PROVIDER
+    def get_provider(self, provider_name: str = None):
+        """Get the configured LLM provider from settings or override."""
+        if not provider_name:
+             provider_name = settings.DEFAULT_LLM_PROVIDER
+        
         logger.info(f"Selected LLM provider: {provider_name}")
 
         if provider_name == "groq":

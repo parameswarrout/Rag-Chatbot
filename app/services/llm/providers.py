@@ -6,9 +6,10 @@ from app.core.config import settings
 from app.services.llm.base import LLMProvider
 
 STRICT_SYSTEM_PROMPT = """You are a helpful AI assistant.
-Answer the user's question strictly based on the provided context below.
-If the answer is not present in the context, state "I don't know" or "The answer is not in the provided documents."
-Do not use outside knowledge.
+First, check the provided context below to answer the user's question.
+If the answer is found in the context, cite the specific information.
+If the answer is NOT in the context, or if the context is empty, you SHOULD use your own general knowledge to answer the question helpfully.
+Do not state "I don't know" unless you truly cannot answer.
 """
 
 class GroqLLM(LLMProvider):
@@ -36,6 +37,22 @@ class GroqLLM(LLMProvider):
         )
         return response.choices[0].message.content
 
+    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
+        if context:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
+        else:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
+            
+        stream = await self.client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[{"role": "user", "content": full_prompt}],
+            temperature=0.7,
+            stream=True
+        )
+        async for chunk in stream:
+            if chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+
 class GeminiLLM(LLMProvider):
     def __init__(self):
         genai.configure(api_key=settings.GEMINI_API_KEY)
@@ -49,6 +66,16 @@ class GeminiLLM(LLMProvider):
 
         response = await self.model.generate_content_async(full_prompt)
         return response.text
+
+    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
+        if context:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
+        else:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
+            
+        response = await self.model.generate_content_async(full_prompt, stream=True)
+        async for chunk in response:
+            yield chunk.text
 
 class OpenAILLM(LLMProvider):
     def __init__(self):
@@ -65,6 +92,21 @@ class OpenAILLM(LLMProvider):
             messages=[{"role": "user", "content": full_prompt}]
         )
         return response.choices[0].message.content
+
+    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
+        if context:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
+        else:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
+            
+        stream = await self.client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[{"role": "user", "content": full_prompt}],
+            stream=True
+        )
+        async for chunk in stream:
+            if chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
 
 class LocalLLM(LLMProvider):
     def __init__(self):
@@ -108,3 +150,41 @@ class LocalLLM(LLMProvider):
             })
             response.raise_for_status()
             return response.json()["message"]["content"]
+
+    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
+        if context:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
+        else:
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
+            
+        base = self.base_url.replace("/v1", "")
+        if base.endswith("/"):
+            base = base[:-1]
+            
+        async with httpx.AsyncClient(base_url=base, timeout=60.0) as client:
+            try:
+                async with client.stream("POST", "/api/chat", json={
+                    "model": "llama3.2",
+                    "messages": [{"role": "user", "content": full_prompt}],
+                    "stream": True,
+                    "options": {"temperature": 0.7}
+                }) as response:
+                    if response.status_code != 200:
+                        error_text = await response.aread()
+                        raise Exception(f"Ollama API Error: {response.status_code} - {error_text.decode()}")
+                        
+                    async for chunk in response.aiter_lines():
+                        if chunk:
+                            import json
+                            try:
+                                data = json.loads(chunk)
+                                content = data.get("message", {}).get("content", "")
+                                if content:
+                                    yield content
+                                if data.get("done", False):
+                                    break
+                            except Exception as parse_err:
+                                print(f"JSON Parse Error: {parse_err}, Chunk: {chunk}")
+                                pass
+            except Exception as e:
+                raise e

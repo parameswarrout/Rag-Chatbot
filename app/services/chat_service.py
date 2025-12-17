@@ -103,7 +103,7 @@ class ChatService:
 
         # 3. Get LLM provider
         try:
-            llm_provider = self.llm_router.get_provider()
+            llm_provider = self.llm_router.get_provider(request.provider)
             logger.info(f"Selected LLM provider: {llm_provider.__class__.__name__}")
         except Exception as e:
             logger.error(f"Provider selection failed: {e}")
@@ -150,7 +150,7 @@ class ChatService:
         
         # 2. Contextualize (Memory)
         # If history exists, rewrite query to be standalone
-        llm_provider = self.llm_router.get_provider()
+        llm_provider = self.llm_router.get_provider(request.provider)
         search_query = user_query
         
         if len(request.messages) > 1:
@@ -182,9 +182,7 @@ Standalone Question:"""
         final_docs = []
         try:
             candidates = await self.retriever.retrieve(search_query, top_k=5) # Reduced for speed
-            if request.mode == "advanced" and candidates:
-                 final_docs = self.reranker.rerank(search_query, candidates, top_k=3)
-            else:
+            if candidates:
                  final_docs = candidates[:3]
         except Exception as e:
             logger.error(f"Retrieval error: {e}")
@@ -201,6 +199,17 @@ Standalone Question:"""
         try:
             async for chunk in llm_provider.stream_generate(search_query, context=context):
                 yield chunk
+            
+            # 5. Yield Citations Metadata
+            if final_docs:
+                import json
+                citations = [
+                    {"content": doc.page_content, "metadata": doc.metadata}
+                    for doc in final_docs
+                ]
+                yield "\n\n__METADATA__\n"
+                yield json.dumps(citations)
+
         except Exception as e:
-            logger.error(f"Streaming error: {e}")
-            yield f"Error: {e}"
+            logger.error(f"Streaming error: {repr(e)}")
+            yield f"Error: {str(e)}"
