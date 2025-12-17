@@ -104,7 +104,8 @@ runtime/
 .cache/
 
 # Local model files that might be large
-models/
+# models/  <-- Removed to allow app/models source code
+saved_models/
 *.bin
 *.pt
 *.pth

@@ -2,7 +2,7 @@ from app.core.config import settings
 from app.services.router import LLMRouter
 from app.services.retriever.hybrid import HybridRetriever
 from app.services.ingestion.loader import DocumentLoader
-from app.services.ingestion.chunker import SemanticChunker
+from app.services.ingestion.chunker import SemanticChunkerService
 from app.core.logging import logger
 
 class Container:
@@ -19,7 +19,7 @@ class Container:
         self.llm_router = LLMRouter()
         self.retriever = HybridRetriever()
         self.document_loader = DocumentLoader()
-        self.semantic_chunker = SemanticChunker()
+        self.semantic_chunker = SemanticChunkerService()
 
     @classmethod
     def get_instance(cls):
