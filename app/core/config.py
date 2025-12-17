@@ -17,6 +17,25 @@ class Settings(BaseSettings):
     LOG_DIR: str = "logs"
     LOG_FILENAME: str = "app.log"
 
+    # --- Retriever Configuration ---
+    # Embedding Model for Vector Search
+    EMBEDDING_MODEL_NAME: str = "sentence-transformers/all-MiniLM-L6-v2"
+    
+    # Re-ranking Model
+    RERANKER_MODEL_NAME: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    
+    # Flags
+    USE_RRF: bool = True
+    USE_RERANK: bool = True
+    
+    # Parameters
+    RRF_K: int = 60
+    TOP_K_RETRIEVAL: int = 50
+
+    # --- Query Expansion Configuration ---
+    USE_QUERY_EXPANSION: bool = True
+    QUERY_EXPANSION_COUNT: int = 3
+
     class Config:
         env_file = ".env"
 

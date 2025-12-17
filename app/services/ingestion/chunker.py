@@ -1,13 +1,20 @@
 from typing import List
-from langchain_experimental.text_splitter import SemanticChunker as LangChainSemanticChunker
-from langchain_core.embeddings import Embeddings
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
+from app.core.config import settings
 
-class SemanticChunker:
-    def __init__(self, embeddings: Embeddings):
-        self.splitter = LangChainSemanticChunker(
-            embeddings=embeddings,
-            breakpoint_threshold_type="percentile" # Standard default
+class SemanticChunkerService:
+    def __init__(self):
+        # Using the same embedding model as the retriever ensures compatibility
+        self.embeddings = HuggingFaceEmbeddings(model_name=settings.EMBEDDING_MODEL_NAME)
+        
+        # Initialize Semantic Chunker
+        # breakpoint_threshold_type="percentile" is a good default. 
+        # It splits when the difference in similarity is in the top X percentile.
+        self.splitter = SemanticChunker(
+            self.embeddings, 
+            breakpoint_threshold_type="percentile"
         )
 
     def chunk_documents(self, documents: List[Document]) -> List[Document]:

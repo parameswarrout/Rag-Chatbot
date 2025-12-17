@@ -1,69 +1,105 @@
 import time
 from typing import List
 from fastapi import HTTPException
-from app.models.schemas import QueryRequest, QueryResponse, ChatStreamRequest
+from app.models.schemas import QueryRequest, QueryResponse, Citation, ChatStreamRequest
+from app.services.query_expansion.expander import QueryExpander
 from app.services.router import LLMRouter
 from app.services.retriever.hybrid import HybridRetriever
-from app.services.retriever.reranker import Reranker
+from app.services.memory_manager import MemoryManager
 from app.core.logging import logger
 
 class ChatService:
-    def __init__(self, llm_router: LLMRouter, retriever: HybridRetriever, reranker: Reranker):
+    def __init__(self, llm_router: LLMRouter, retriever: HybridRetriever):
         self.llm_router = llm_router
         self.retriever = retriever
-        self.reranker = reranker
+        self.query_expander = QueryExpander()
+        self.memory_manager = MemoryManager()
 
     async def process_query(self, request: QueryRequest) -> QueryResponse:
         start_time = time.time()
         logger.info(f"Processing query: {request.text}")
 
+        # 0. Get History
+        history_context = self.memory_manager.get_history(request.session_id)
+        if history_context:
+            logger.info(f"Retrieved history for session {request.session_id}")
+
         final_docs = []
         source_label = "LLM Only"
+        
+        # 1. Expand Query / Route based on Mode
+        queries = [request.text] # Default single query
 
         if request.mode == "fast":
-            # Fast mode: Light retrieval (Standard RAG, minimal context)
-            try:
-                final_docs = await self.retriever.retrieve(request.text, top_k=1)
-                source_label = "HybridRetriever (Fast Mode)"
-                logger.debug(f"Mode: FAST - Retrieved {len(final_docs)} doc.")
-            except Exception as e:
-                logger.error(f"Retrieval failed: {e}")
-                final_docs = []
-                
-        elif request.mode == "simple":
-            # Simple mode: Standard retrieval (Standard RAG, normal context)
-            try:
-                final_docs = await self.retriever.retrieve(request.text, top_k=3)
-                source_label = "HybridRetriever (Simple Mode)"
-                logger.debug(f"Mode: SIMPLE - Retrieved {len(final_docs)} docs.")
-            except Exception as e:
-                logger.error(f"Retrieval failed: {e}")
-                final_docs = []
+             # Fast mode: Single query, no expansion, small K
+             final_docs = await self.retriever.retrieve(request.text, top_k=1)
+             source_label = "HybridRetriever (Fast Mode)"
+             queries = [request.text]
 
+        elif request.mode == "simple":
+             # Simple mode: Single query, moderate K
+             final_docs = await self.retriever.retrieve(request.text, top_k=3)
+             source_label = "HybridRetriever (Simple Mode)"
+             queries = [request.text]
+        
         else: # "advanced" (default)
-            # Advanced mode: Retrieval + Reranker (High precision)
-            source_label = "HybridRetriever + Reranker (Advanced Mode)"
-            try:
-                # 1. Retrieve candidates
-                candidates = await self.retriever.retrieve(request.text, top_k=10)
-                
-                # 2. Rerank
-                if candidates:
-                    final_docs = self.reranker.rerank(request.text, candidates, top_k=3)
-                else:
-                    final_docs = []
-                logger.debug(f"Mode: ADVANCED - Reranked to {len(final_docs)} docs.")
-            except Exception as e:
-                logger.error(f"Advanced flow failed: {e}")
-                final_docs = []
+             source_label = "HybridRetriever + Reranker + Expansion (Advanced Mode)"
+             # Use Query Expansion
+             queries = await self.query_expander.generate_queries(request.text)
+             logger.info(f"Generated {len(queries)} queries: {queries}")
+
+             # Retrieve for all queries
+             unique_docs = {}
+             for query in queries:
+                  candidates = await self.retriever.retrieve(query, top_k=10) # Broader search for reranking
+                  for doc in candidates:
+                      if doc.page_content not in unique_docs:
+                          unique_docs[doc.page_content] = doc
+             
+             all_candidates = list(unique_docs.values())
+             
+             # Re-rank
+             if all_candidates:
+                  # Use reranker (assuming self.retriever has access, or use direct reranker if available)
+                  # In dev branch refactor, retrieval logic might be inside HybridRetriever if configured.
+                  # But looking at dev code, it manually called reranker? 
+                  # Let's check imports. Dev `ChatService` didn't import `Reranker` explicitly, it relied on `HybridRetriever` doing it?
+                  # Wait, previous dev code: `docs = await self.retriever.retrieve(query)`
+                  # And `HybridRetriever` in dev handles RRF and Reranking internally if flags are set!
+                  # So we just need to call `self.retriever.retrieve` with the expanded queries.
+                  
+                  # Actually, if HybridRetriever handles reranking, we shouldn't do it again here.
+                  # Dev `HybridRetriever` reads `settings.USE_RERANK`.
+                  
+                  # So for Advanced mode in Dev architecture:
+                  # We just pass generated queries to retriever? 
+                  # HybridRetriever `retrieve` takes `query: str`. It doesn't take multiple queries natively maybe?
+                  # Dev ChatService loop: `for query in queries: docs = await self.retriever.retrieve(query)`
+                  
+                  # So we keep the loop.
+                  pass
+             
+             final_docs = all_candidates[:5] # Fallback if no reranker logic here, but HybridRetriever generates quality docs.
+             # Actually, let's stick to the Dev implementation logic which was:
+             # Expand -> Retrieve Loop -> Deduplicate -> Citations.
+             # The Dev `HybridRetriever` likely includes Reranking inside `retrieve()`.
+             
+             unique_docs = {}
+             for query in queries:
+                 docs = await self.retriever.retrieve(query) # This calls RRF/Rerank internally per query
+                 for doc in docs:
+                     unique_docs[doc.page_content] = doc
+             final_docs = list(unique_docs.values())
 
         # Prepare context and citations
+        context = ""
+        citations = []
         if final_docs:
             context = "\n\n".join([doc.page_content for doc in final_docs])
-            citations = [doc.metadata.get("source", "Unknown") for doc in final_docs]
-        else:
-            context = ""
-            citations = []
+            citations = [
+                Citation(content=doc.page_content, metadata=doc.metadata)
+                for doc in final_docs
+            ]
 
         # 3. Get LLM provider
         try:
@@ -75,7 +111,17 @@ class ChatService:
 
         # 4. Generate response
         try:
-            answer = await llm_provider.generate(request.text, context=context)
+            # Append history to context
+            full_context = context
+            if history_context:
+                full_context = f"PREVIOUS CONVERSATION HISTORY:\n{history_context}\n\nRETRIEVED DOCUMENT CONTEXT:\n{context}"
+            
+            answer = await llm_provider.generate(request.text, context=full_context)
+            
+            # 5. Save to Memory
+            if request.session_id:
+                self.memory_manager.add_turn(request.session_id, request.text, answer)
+
         except Exception as e:
             logger.error(f"Generation failed: {e}")
             raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")

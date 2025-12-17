@@ -1,17 +1,21 @@
 from pydantic import BaseModel
-
-from typing import Literal
+from typing import List, Optional, Literal
 
 class QueryRequest(BaseModel):
     text: str
+    session_id: Optional[str] = None
     mode: Literal["fast", "simple", "advanced"] = "advanced"
+
+class Citation(BaseModel):
+    content: str
+    metadata: dict
 
 class QueryResponse(BaseModel):
     answer: str
     source: str
     model_used: str
     latency: float
-    citations: list[str] = []
+    citations: List[Citation] = []
     metadata: dict | None = None
 
 class Message(BaseModel):

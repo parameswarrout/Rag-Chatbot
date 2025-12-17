@@ -7,16 +7,13 @@ from app.services.llm.base import LLMProvider
 
 STRICT_SYSTEM_PROMPT = """You are a helpful AI assistant.
 Answer the user's question strictly based on the provided context below.
-If the answer is not present in the context, strictly reply with: "I do not know the answer. Please connect to a representative for further assistance."
+If the answer is not present in the context, state "I don't know" or "The answer is not in the provided documents."
 Do not use outside knowledge.
 """
 
 class GroqLLM(LLMProvider):
     def __init__(self):
         self.api_key = settings.GROQ_API_KEY
-        if not self.api_key:
-            raise ValueError("GROQ_API_KEY is not set. Please add it to your .env file.")
-
         self.client = AsyncOpenAI(
             api_key=self.api_key,
             base_url="https://api.groq.com/openai/v1"
@@ -33,28 +30,11 @@ class GroqLLM(LLMProvider):
             full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
             
         response = await self.client.chat.completions.create(
-            model="openai/gpt-oss-20b", # Groq model ID might differ, keeping original
+            model="openai/gpt-oss-20b", # Groq model ID set per user request
             messages=[{"role": "user", "content": full_prompt}],
             temperature=0.7
         )
         return response.choices[0].message.content
-
-    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
-        if context:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
-        else:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
-            
-        stream = await self.client.chat.completions.create(
-            model="openai/gpt-oss-20b", 
-            messages=[{"role": "user", "content": full_prompt}],
-            temperature=0.7,
-            stream=True
-        )
-        async for chunk in stream:
-            content = chunk.choices[0].delta.content
-            if content:
-                yield content
 
 class GeminiLLM(LLMProvider):
     def __init__(self):
@@ -69,16 +49,6 @@ class GeminiLLM(LLMProvider):
 
         response = await self.model.generate_content_async(full_prompt)
         return response.text
-
-    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
-        # Gemini specific streaming
-        if context:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
-        else:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
-            
-        async for chunk in await self.model.generate_content_async(full_prompt, stream=True):
-            yield chunk.text
 
 class OpenAILLM(LLMProvider):
     def __init__(self):
@@ -96,22 +66,6 @@ class OpenAILLM(LLMProvider):
         )
         return response.choices[0].message.content
 
-    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
-        if context:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
-        else:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
-            
-        stream = await self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
-            messages=[{"role": "user", "content": full_prompt}],
-            stream=True
-        )
-        async for chunk in stream:
-            content = chunk.choices[0].delta.content
-            if content:
-                yield content
-
 class LocalLLM(LLMProvider):
     def __init__(self):
         self.base_url = settings.LOCAL_LLM_URL
@@ -123,22 +77,34 @@ class LocalLLM(LLMProvider):
         else:
             full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
 
-        # Assuming OpenAI-compatible API (e.g., Ollama, LM Studio)
-        response = await self.client.post("/chat/completions", json={
-            "model": "local-model", # Model name often ignored by local servers or set to specific one
-            "messages": [{"role": "user", "content": full_prompt}],
-            "temperature": 0.7
-        })
-        response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
-
-    async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
-        # Local LLM might simpler
-        if context:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
-        else:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
+        # Ollama API (Native)
+        # Note: If using /v1/chat/completions, we need to ensure Ollama runs with compat.
+        # But let's use the native /api/chat for robustness if /v1 failed.
+        # However, providers.py was written assuming OpenAI compat.
+        # Let's try fixing the Base URL usage. 
+        # If config has /v1, httpx append /chat/completions -> /v1/chat/completions.
+        # Ollama usually serves at root.
+        
+        # NOTE: standard ollama is http://localhost:11434
+        # If settings.LOCAL_LLM_URL is http://localhost:11434/v1, then the code effectively calls .../v1/chat/completions
+        # If that 404s, maybe Ollama version is old or we should use /api/generate (non-chat) or /api/chat.
+        
+        # Let's switch to native /api/chat for safety with default ollama install.
+        
+        # Updating strictly to use /api/chat requires changing how we call it.
+        # Ollama native API: POST /api/chat {"model": "...", "messages": [...]}
+        
+        # We need to strip /v1 from base_url if it's there
+        base = self.base_url.replace("/v1", "")
+        if base.endswith("/"):
+            base = base[:-1]
             
-        # Simplified: just yield the full text for now since httpx streaming for local setups varies
-        # or implement assuming OpenAI format if possible, but keeping it safe:
-        yield await self.generate(prompt, context)
+        async with httpx.AsyncClient(base_url=base) as client:
+            response = await client.post("/api/chat", json={
+                "model": "llama3.2", # Force model for now or use config
+                "messages": [{"role": "user", "content": full_prompt}],
+                "stream": False,
+                "options": {"temperature": 0.7}
+            })
+            response.raise_for_status()
+            return response.json()["message"]["content"]
