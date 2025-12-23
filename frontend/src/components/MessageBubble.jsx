@@ -2,14 +2,22 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { User, Bot, Server, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { User, Bot, Server, FileText, ChevronDown, ChevronUp, Copy, RefreshCw } from 'lucide-react';
+import CitationDisplay from './CitationDisplay';
 
-const MessageBubble = ({ msg, loading }) => {
+const MessageBubble = ({ msg, loading, onRegenerate }) => {
     const [showSources, setShowSources] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(msg.content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     return (
         <div
-            className={`flex gap-4 max-w-3xl mx-auto ${msg.role === 'user' ? 'justify-end' : ''}`}
+            className={`flex gap-4 max-w-3xl mx-auto group ${msg.role === 'user' ? 'justify-end' : ''}`}
         >
             {msg.role === 'assistant' && (
                 <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1 shadow-glow ring-1 ring-primary/20">
@@ -46,7 +54,7 @@ const MessageBubble = ({ msg, loading }) => {
                                     }
                                 }}
                             >
-                                {msg.content}
+                                {msg.content.split('__METADATA__')[0]}
                             </ReactMarkdown>
                         </div>
                     ) : (
@@ -54,24 +62,43 @@ const MessageBubble = ({ msg, loading }) => {
                     )}
                 </div>
 
-                {/* Metadata / Citations for AI */}
                 {msg.role === 'assistant' && !loading && (
                     <div className="space-y-2 px-1 w-full opacity-90 transition-opacity">
-                        <div className="flex items-center gap-3 text-[10px] text-gray-500 font-medium uppercase tracking-wider select-none">
+                        <div className="flex items-center gap-3 text-[10px] text-gray-400 font-medium uppercase tracking-wider select-none relative h-5">
                             {msg.latency > 0 && (
-                                <span className="flex items-center gap-1">
+                                <span className="flex items-center gap-1 text-cyan-400">
                                     <Server className="w-3 h-3" />
                                     {msg.latency.toFixed(2)}s
                                 </span>
                             )}
 
-                            {msg.source && <span className="opacity-75">• {msg.source}</span>}
+                            {msg.source && <span className="text-blue-400 opacity-90">• {msg.source}</span>}
 
-                            {/* Clickable Sources Toggle */}
+                            {/* Action Buttons (Visible on Hover) */}
+                            <div className="flex items-center gap-2 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                    onClick={handleCopy}
+                                    className="p-1 hover:text-white transition-colors"
+                                    title="Copy"
+                                >
+                                    {copied ? <span className="text-green-400 font-bold">✓</span> : <Copy className="w-3 h-3" />}
+                                </button>
+                                {onRegenerate && (
+                                    <button 
+                                        onClick={onRegenerate}
+                                        className="p-1 hover:text-white transition-colors"
+                                        title="Regenerate Response"
+                                    >
+                                        <RefreshCw className="w-3 h-3" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Click Sources Toggle */}
                             {msg.citations && msg.citations.length > 0 && (
                                 <button
                                     onClick={() => setShowSources(!showSources)}
-                                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full transition-all border ${showSources
+                                    className={`ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full transition-all border cursor-pointer select-none ${showSources
                                             ? 'bg-primary/20 text-primary border-primary/20'
                                             : 'bg-white/5 text-gray-400 hover:text-white border-transparent hover:bg-white/10'
                                         }`}
@@ -83,28 +110,13 @@ const MessageBubble = ({ msg, loading }) => {
                             )}
                         </div>
 
-                        {/* Collapsible Citations Area */}
-                        {showSources && msg.citations && msg.citations.length > 0 && (
-                            <div className="bg-black/40 rounded-xl p-3 border border-white/10 mt-1 pointer-events-auto animate-in fade-in slide-in-from-top-2 duration-200">
-                                <div className="grid gap-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-                                    {msg.citations.map((cit, idx) => (
-                                        <div key={idx} className="group text-xs text-gray-400 bg-white/5 p-3 rounded-lg hover:bg-white/10 transition-colors border border-transparent hover:border-white/5">
-                                            <p className="line-clamp-2 italic text-gray-300 mb-1 group-hover:text-white transition-colors">"{cit.content}"</p>
-                                            <div className="flex items-center gap-2 mt-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                                                <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">
-                                                    Page {cit.metadata?.page_label || '?'}
-                                                </span>
-                                                <span className="text-[9px] truncate">
-                                                    {cit.metadata?.file_path?.split('/').pop() || 'Unknown File'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                        {/* Expanded List - Now below the Flex Row */}
+                        {showSources && msg.citations && (
+                            <CitationDisplay citations={msg.citations} />
                         )}
                     </div>
-                )}
+
+            )}
             </div>
 
             {msg.role === 'user' && (

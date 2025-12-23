@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <!-- Primary (Green) to Purple Gradient -->
+    <!-- Primary: hsl(142.1, 70.6%, 45.3%) which is roughly #22c55e (green-500) -->
+    <!-- Purple-500: roughly #a855f7 -->
+    <linearGradient id="brandGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#22c55e" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Rounded Square Container -->
+  <rect x="10" y="10" width="80" height="80" rx="20" fill="url(#brandGrad)" filter="url(#shadow)" />
+  
+  <!-- Sparkles Icon (Central Star) -->
+  <path d="M50 25 L55 45 L75 50 L55 55 L50 75 L45 55 L25 50 L45 45 Z" fill="white" />
+  
+  <!-- Smaller Sparkle (Top Right) -->
+  <path d="M75 25 L78 35 L88 38 L78 41 L75 51 L72 41 L62 38 L72 35 Z" fill="white" opacity="0.9" transform="scale(0.6) translate(40, -10)"/>
+
+</svg>

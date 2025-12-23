@@ -1,9 +1,12 @@
 import httpx
 from typing import Optional
+import logging
 import google.generativeai as genai
 from openai import AsyncOpenAI
 from app.core.config import settings
 from app.services.llm.base import LLMProvider
+
+logger = logging.getLogger(__name__)
 
 STRICT_SYSTEM_PROMPT = """You are a helpful AI assistant.
 First, check the provided context below to answer the user's question.
@@ -30,12 +33,19 @@ class GroqLLM(LLMProvider):
             # and it should likely say "I don't know" because there is no context.
             full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
             
-        response = await self.client.chat.completions.create(
-            model="openai/gpt-oss-20b", # Groq model ID set per user request
-            messages=[{"role": "user", "content": full_prompt}],
-            temperature=0.7
-        )
-        return response.choices[0].message.content
+        logger.info(f"GroqLLM Request: Prompt='{prompt}', Context_Len={len(context) if context else 0}")
+        try:
+            response = await self.client.chat.completions.create(
+                model="openai/gpt-oss-20b", # Groq model ID set per user request
+                messages=[{"role": "user", "content": full_prompt}],
+                temperature=0.7
+            )
+            content = response.choices[0].message.content
+            logger.info("GroqLLM Response received")
+            return content
+        except Exception as e:
+            logger.error(f"GroqLLM Error: {e}")
+            raise e
 
     async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
         if context:
@@ -43,15 +53,20 @@ class GroqLLM(LLMProvider):
         else:
             full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
             
-        stream = await self.client.chat.completions.create(
-            model="openai/gpt-oss-20b",
-            messages=[{"role": "user", "content": full_prompt}],
-            temperature=0.7,
-            stream=True
-        )
-        async for chunk in stream:
-            if chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+        logger.info(f"GroqLLM Stream Request: Prompt='{prompt}'")
+        try:
+            stream = await self.client.chat.completions.create(
+                model="openai/gpt-oss-20b",
+                messages=[{"role": "user", "content": full_prompt}],
+                temperature=0.7,
+                stream=True
+            )
+            async for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        except Exception as e:
+            logger.error(f"GroqLLM Stream Error: {e}")
+            raise e
 
 class GeminiLLM(LLMProvider):
     def __init__(self):
@@ -64,8 +79,14 @@ class GeminiLLM(LLMProvider):
         else:
             full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
 
-        response = await self.model.generate_content_async(full_prompt)
-        return response.text
+        logger.info(f"GeminiLLM Request: Prompt='{prompt}'")
+        try:
+            response = await self.model.generate_content_async(full_prompt)
+            logger.info("GeminiLLM Response received")
+            return response.text
+        except Exception as e:
+            logger.error(f"GeminiLLM Error: {e}")
+            raise e
 
     async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
         if context:
@@ -87,11 +108,17 @@ class OpenAILLM(LLMProvider):
         else:
             full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
 
-        response = await self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
-            messages=[{"role": "user", "content": full_prompt}]
-        )
-        return response.choices[0].message.content
+        logger.info(f"OpenAILLM Request: Prompt='{prompt}'")
+        try:
+            response = await self.client.chat.completions.create(
+                model="gpt-4-turbo-preview",
+                messages=[{"role": "user", "content": full_prompt}]
+            )
+            logger.info("OpenAILLM Response received")
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"OpenAILLM Error: {e}")
+            raise e
 
     async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
         if context:
@@ -115,9 +142,9 @@ class LocalLLM(LLMProvider):
 
     async def generate(self, prompt: str, context: Optional[str] = None, **kwargs) -> str:
         if context:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}\n\nNote: Please provide a short, concise answer."
         else:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}\n\nNote: Please provide a short, concise answer."
 
         # Ollama API (Native)
         # Note: If using /v1/chat/completions, we need to ensure Ollama runs with compat.
@@ -133,6 +160,8 @@ class LocalLLM(LLMProvider):
         
         # Let's switch to native /api/chat for safety with default ollama install.
         
+        logger.info(f"LocalLLM Request: Prompt='{prompt}'")
+        
         # Updating strictly to use /api/chat requires changing how we call it.
         # Ollama native API: POST /api/chat {"model": "...", "messages": [...]}
         
@@ -141,21 +170,31 @@ class LocalLLM(LLMProvider):
         if base.endswith("/"):
             base = base[:-1]
             
-        async with httpx.AsyncClient(base_url=base) as client:
-            response = await client.post("/api/chat", json={
-                "model": "llama3.2", # Force model for now or use config
-                "messages": [{"role": "user", "content": full_prompt}],
-                "stream": False,
-                "options": {"temperature": 0.7}
-            })
-            response.raise_for_status()
-            return response.json()["message"]["content"]
+        try:
+            async with httpx.AsyncClient(base_url=base, timeout=120.0) as client:
+                response = await client.post("/api/chat", json={
+                    "model": settings.LOCAL_LLM_MODEL, 
+                    "messages": [{"role": "user", "content": full_prompt}],
+                    "stream": False,
+                    "options": {"temperature": 0.7}
+                })
+                if response.status_code == 404:
+                    # Fallback to 'llama3.2:1b' if 'llama3.2' not found? 
+                    # Or just raise error. The user said they installed it.
+                    # Let's try to pull if missing? No, that's too much magic.
+                    raise Exception(f"Model '{settings.LOCAL_LLM_MODEL}' not found on Ollama server. Please run `ollama pull {settings.LOCAL_LLM_MODEL}`")
+                response.raise_for_status()
+                logger.info("LocalLLM Response received")
+                return response.json()["message"]["content"]
+        except Exception as e:
+            logger.error(f"LocalLLM Error: {e}")
+            raise e
 
     async def stream_generate(self, prompt: str, context: Optional[str] = None, **kwargs):
         if context:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}"
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: {context}\n\nQuestion: {prompt}\n\nNote: Please provide a short, concise answer."
         else:
-            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}"
+            full_prompt = f"{STRICT_SYSTEM_PROMPT}\n\nContext: None\n\nQuestion: {prompt}\n\nNote: Please provide a short, concise answer."
             
         base = self.base_url.replace("/v1", "")
         if base.endswith("/"):
@@ -163,8 +202,11 @@ class LocalLLM(LLMProvider):
             
         async with httpx.AsyncClient(base_url=base, timeout=60.0) as client:
             try:
+                # Use custom model if provided, else from settings
+                model = kwargs.get('model') or settings.LOCAL_LLM_MODEL
+                
                 async with client.stream("POST", "/api/chat", json={
-                    "model": "llama3.2",
+                    "model": model,
                     "messages": [{"role": "user", "content": full_prompt}],
                     "stream": True,
                     "options": {"temperature": 0.7}

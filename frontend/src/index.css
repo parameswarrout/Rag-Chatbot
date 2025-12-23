@@ -7,8 +7,8 @@
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 142.1 70.6% 45.3%;
+    --primary-foreground: 144.9 80.4% 10%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -34,12 +34,12 @@
   width: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background)); 
+  background: hsl(var(--background));
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted)); 
+  background: hsl(var(--muted));
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary)); 
+  background: hsl(var(--primary));
 }

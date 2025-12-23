@@ -1,5 +1,8 @@
 from typing import List, Dict
 from langchain_core.documents import Document
+import logging
+
+logger = logging.getLogger(__name__)
 
 class EnsembleRetriever:
     def __init__(self, weights: List[float] = None, c: int = 60):
@@ -15,6 +18,7 @@ class EnsembleRetriever:
         """
         Applies Reciprocal Rank Fusion (RRF) to combine multiple lists of documents.
         """
+        logger.debug(f"Starting RRF rank fusion with {len(results)} result sets")
         fused_scores: Dict[str, float] = {}
         doc_map: Dict[str, Document] = {}
 
@@ -43,5 +47,6 @@ class EnsembleRetriever:
             key=lambda x: x[1], 
             reverse=True
         )
-
+        
+        logger.debug(f"RRF Fusion Complete. Sorted {len(reranked_results)} documents.")
         return [doc_map[doc_id] for doc_id, score in reranked_results]

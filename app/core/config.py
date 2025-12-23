@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     OPENAI_API_KEY: Optional[str] = None
     LOCAL_LLM_URL: str = "http://localhost:11434/v1"
+    LOCAL_LLM_MODEL: str = "llama3.2"
 
     DEFAULT_LLM_PROVIDER: str = "groq"  # Can be "openai", "gemini", "groq", or "local"
     
@@ -16,6 +17,7 @@ class Settings(BaseSettings):
     LOG_TO_CONSOLE: bool = True
     LOG_DIR: str = "logs"
     LOG_FILENAME: str = "app.log"
+    LOG_LEVEL: str = "INFO"
 
     # --- Retriever Configuration ---
     # Embedding Model for Vector Search
@@ -35,6 +37,9 @@ class Settings(BaseSettings):
     # --- Query Expansion Configuration ---
     USE_QUERY_EXPANSION: bool = True
     QUERY_EXPANSION_COUNT: int = 3
+
+    # --- Performance Configuration ---
+    MAX_WORKERS: int = 4
 
     class Config:
         env_file = ".env"

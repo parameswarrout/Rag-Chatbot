@@ -34,7 +34,7 @@ def setup_logging():
     import os
 
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    logger.setLevel(settings.LOG_LEVEL.upper())
 
     # removing default handlers to avoid duplication if re-setup
     if logger.handlers:

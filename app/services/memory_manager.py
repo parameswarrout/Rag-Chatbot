@@ -71,3 +71,7 @@ class MemoryManager:
         if session_id in self.history:
             del self.history[session_id]
             self.save_history()
+
+    def clear_all_history(self):
+        self.history.clear()
+        self.save_history()
