@@ -18,7 +18,7 @@ class Container:
         self.settings = settings
         self.llm_router = LLMRouter()
         self.retriever = HybridRetriever()
-        self.document_loader = DocumentLoader()
+        self.document_loader = DocumentLoader(max_workers=settings.MAX_WORKERS if hasattr(settings, 'MAX_WORKERS') else 4)
         self.semantic_chunker = SemanticChunkerService()
 
     @classmethod

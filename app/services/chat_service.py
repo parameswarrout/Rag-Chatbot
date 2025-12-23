@@ -15,6 +15,9 @@ class ChatService:
         self.query_expander = QueryExpander()
         self.memory_manager = MemoryManager()
 
+    def clear_all_sessions(self):
+        self.memory_manager.clear_all_history()
+
     async def process_query(self, request: QueryRequest) -> QueryResponse:
         start_time = time.time()
         logger.info(f"Processing query: {request.text}")
@@ -48,47 +51,23 @@ class ChatService:
              queries = await self.query_expander.generate_queries(request.text)
              logger.info(f"Generated {len(queries)} queries: {queries}")
 
-             # Retrieve for all queries
+             # Retrieve for all queries concurrently
+             import asyncio
+
+             async def retrieve_single_query(query):
+                 return await self.retriever.retrieve(query)  # This calls RRF/Rerank internally per query
+
+             # Run all retrievals concurrently
+             retrieval_tasks = [retrieve_single_query(query) for query in queries]
+             all_retrieved_docs = await asyncio.gather(*retrieval_tasks)
+
+             # Combine results from all queries
              unique_docs = {}
-             for query in queries:
-                  candidates = await self.retriever.retrieve(query, top_k=10) # Broader search for reranking
-                  for doc in candidates:
-                      if doc.page_content not in unique_docs:
-                          unique_docs[doc.page_content] = doc
-             
-             all_candidates = list(unique_docs.values())
-             
-             # Re-rank
-             if all_candidates:
-                  # Use reranker (assuming self.retriever has access, or use direct reranker if available)
-                  # In dev branch refactor, retrieval logic might be inside HybridRetriever if configured.
-                  # But looking at dev code, it manually called reranker? 
-                  # Let's check imports. Dev `ChatService` didn't import `Reranker` explicitly, it relied on `HybridRetriever` doing it?
-                  # Wait, previous dev code: `docs = await self.retriever.retrieve(query)`
-                  # And `HybridRetriever` in dev handles RRF and Reranking internally if flags are set!
-                  # So we just need to call `self.retriever.retrieve` with the expanded queries.
-                  
-                  # Actually, if HybridRetriever handles reranking, we shouldn't do it again here.
-                  # Dev `HybridRetriever` reads `settings.USE_RERANK`.
-                  
-                  # So for Advanced mode in Dev architecture:
-                  # We just pass generated queries to retriever? 
-                  # HybridRetriever `retrieve` takes `query: str`. It doesn't take multiple queries natively maybe?
-                  # Dev ChatService loop: `for query in queries: docs = await self.retriever.retrieve(query)`
-                  
-                  # So we keep the loop.
-                  pass
-             
-             final_docs = all_candidates[:5] # Fallback if no reranker logic here, but HybridRetriever generates quality docs.
-             # Actually, let's stick to the Dev implementation logic which was:
-             # Expand -> Retrieve Loop -> Deduplicate -> Citations.
-             # The Dev `HybridRetriever` likely includes Reranking inside `retrieve()`.
-             
-             unique_docs = {}
-             for query in queries:
-                 docs = await self.retriever.retrieve(query) # This calls RRF/Rerank internally per query
-                 for doc in docs:
-                     unique_docs[doc.page_content] = doc
+             for docs_list in all_retrieved_docs:
+                 for doc in docs_list:
+                     if doc.page_content not in unique_docs:
+                         unique_docs[doc.page_content] = doc
+
              final_docs = list(unique_docs.values())
 
         # Prepare context and citations
@@ -103,7 +82,7 @@ class ChatService:
 
         # 3. Get LLM provider
         try:
-            llm_provider = self.llm_router.get_provider()
+            llm_provider = self.llm_router.get_provider(request.provider)
             logger.info(f"Selected LLM provider: {llm_provider.__class__.__name__}")
         except Exception as e:
             logger.error(f"Provider selection failed: {e}")
@@ -149,58 +128,74 @@ class ChatService:
         user_query = last_message.content
         
         # 2. Contextualize (Memory)
-        # If history exists, rewrite query to be standalone
-        llm_provider = self.llm_router.get_provider()
+        yield "__STATUS__: Contextualizing query..."
+        llm_provider = self.llm_router.get_provider(request.provider)
         search_query = user_query
         
-        if len(request.messages) > 1:
-            history_text = "\n".join([f"{m.role}: {m.content}" for m in request.messages[:-1]])
-            rewrite_prompt = f"""Given the following conversation history, rewrite the last user question to be a standalone question that can be understood without context.
-            
-History:
-{history_text}
-
-User Question: {user_query}
-
-Standalone Question:"""
-            try: 
-                # Use generate without strict context for rewriting
-                # We reuse generate() but pass None as context to avoid injecting STRICT_SYSTEM_PROMPT if possible?
-                # Actually provider.generate enforces STRICT_SYSTEM_PROMPT. Use a trick or accept it?
-                # The STRICT_PROMPT says "Answer strictly based on context". 
-                # This might BREAK rewriting if I don't provide context.
-                # I should probably add a raw_generate to provider or just accept that "Memory" might be flaky 
-                # without a dedicated "Chat" model or prompt override.
-                # For now, let's skip the complicated rewrite to ensure stability and just use the raw query + history in RAG?
-                # No, RAG needs specific query.
-                # Let's simple concatenate for now to be safe: "history + query"
-                pass 
-            except Exception:
-                pass
-
-        # 3. Retrieve & Rerank (Reuse internal logic if refactored, but duplicated for safety here)
+        # ... (Rewrite logic skipped for brevity, keeping existing pass) ...
+        
+        # 3. Retrieve & Rerank
         final_docs = []
-        try:
-            candidates = await self.retriever.retrieve(search_query, top_k=5) # Reduced for speed
-            if request.mode == "advanced" and candidates:
-                 final_docs = self.reranker.rerank(search_query, candidates, top_k=3)
-            else:
-                 final_docs = candidates[:3]
-        except Exception as e:
-            logger.error(f"Retrieval error: {e}")
+        if request.use_rag:
+            yield "__STATUS__: Searching knowledge base..."
+            try:
+                # Mode-based retrieval
+                if request.mode == "fast":
+                    candidates = await self.retriever.retrieve(search_query, top_k=1)
+                    final_docs = candidates
+                
+                elif request.mode == "simple":
+                    candidates = await self.retriever.retrieve(search_query, top_k=3)
+                    final_docs = candidates
+
+                else: # advanced
+                    yield "__STATUS__: Expanding queries & Reranking..."
+                    # 1. Expand
+                    queries = await self.query_expander.generate_queries(search_query)
+
+                    # 2. Retrieve for all queries concurrently
+                    import asyncio
+
+                    async def retrieve_single_query(query):
+                        return await self.retriever.retrieve(query, top_k=3)
+
+                    # Run all retrievals concurrently
+                    retrieval_tasks = [retrieve_single_query(q) for q in queries]
+                    all_retrieved_docs = await asyncio.gather(*retrieval_tasks)
+
+                    # 3. Combine results from all queries
+                    unique_docs = {}
+                    for docs_list in all_retrieved_docs:
+                        for d in docs_list:
+                            if d.page_content not in unique_docs:
+                                unique_docs[d.page_content] = d
+
+                    # 4. Take top 5 unique
+                    final_docs = list(unique_docs.values())[:5]
+
+            except Exception as e:
+                logger.error(f"Retrieval error: {e}")
             
         context = ""
         if final_docs:
              context = "\n".join([d.page_content for d in final_docs])
              
         # 4. Stream Response
-        # Yield metadata first? No, standard streaming usually just sends content.
-        # But we verify citations... standard implementation sends citations at the end?
-        # I'll just stream the content.
-        
+        yield "__STATUS__: Generating response..."
         try:
-            async for chunk in llm_provider.stream_generate(search_query, context=context):
+            async for chunk in llm_provider.stream_generate(search_query, context=context, model=request.model):
                 yield chunk
+            
+            # 5. Yield Citations Metadata
+            if final_docs:
+                import json
+                citations = [
+                    {"content": doc.page_content, "metadata": doc.metadata}
+                    for doc in final_docs
+                ]
+                yield "\n\n__METADATA__\n"
+                yield json.dumps(citations)
+
         except Exception as e:
-            logger.error(f"Streaming error: {e}")
-            yield f"Error: {e}"
+            logger.error(f"Streaming error: {repr(e)}")
+            yield f"Error: {str(e)}"

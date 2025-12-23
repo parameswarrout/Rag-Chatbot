@@ -100,49 +100,86 @@ class HybridRetriever(BaseRetriever):
         except Exception as e:
             logger.error(f"Failed to load index: {e}")
 
+    def clear_index(self):
+        """Clears the in-memory and on-disk index."""
+        self.vector_store = None
+        self.bm25_retriever = None
+        
+        if os.path.exists(INDEX_DIR):
+            try:
+                import shutil
+                shutil.rmtree(INDEX_DIR)
+                logger.info(f"Cleared index directory: {INDEX_DIR}")
+            except Exception as e:
+                logger.error(f"Failed to clear index directory: {e}")
+        else:
+             logger.info("Index directory does not exist, nothing to clear.")
+
     async def retrieve(
-        self, 
-        query: str, 
-        top_k: int = 5, 
+        self,
+        query: str,
+        top_k: int = 5,
         filters: Optional[Dict[str, Any]] = None
     ) -> List[Document]:
-        
+
         if not self.vector_store or not self.bm25_retriever:
             logger.warning("Attempted retrieval without indexed data.")
             return []
-        
-        # 1. Retrieve from Vector Store (with filters)
-        # FAISS supports filters if the underlying docstore supports it, or we can use search_kwargs
-        # For standard FAISS in LangChain, filter support depends on the implementation. 
-        # Usually it's passed as 'filter' in search_kwargs.
-        search_kwargs = {"k": self.top_k_retrieval}
-        if filters:
-            search_kwargs["filter"] = filters
-            
-        vector_docs = self.vector_store.similarity_search(query, **search_kwargs)
-        
-        # 2. Retrieve from BM25 (Keyword)
-        # BM25 doesn't natively support metadata filtering easily in this implementation.
-        # We retrieve raw and then could filter manually, but for now we just retrieve.
-        self.bm25_retriever.k = self.top_k_retrieval
-        keyword_docs = self.bm25_retriever.invoke(query)
-        
-        # Apply manual filtering to BM25 results if filters exist
-        if filters:
-            filtered_keyword_docs = []
-            for doc in keyword_docs:
-                match = True
-                for key, value in filters.items():
-                    if doc.metadata.get(key) != value:
-                        match = False
-                        break
-                if match:
-                    filtered_keyword_docs.append(doc)
-            keyword_docs = filtered_keyword_docs
+
+        logger.info(f"Hybrid Retrieval started for query: '{query}'")
+
+        # Run vector and keyword retrieval concurrently using ThreadPoolExecutor
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+
+        def retrieve_vector():
+            # 1. Retrieve from Vector Store (with filters)
+            # FAISS supports filters if the underlying docstore supports it, or we can use search_kwargs
+            # For standard FAISS in LangChain, filter support depends on the implementation.
+            # Usually it's passed as 'filter' in search_kwargs.
+            search_kwargs = {"k": self.top_k_retrieval}
+            if filters:
+                search_kwargs["filter"] = filters
+
+            return self.vector_store.similarity_search(query, **search_kwargs)
+
+        def retrieve_keyword():
+            # 2. Retrieve from BM25 (Keyword)
+            # BM25 doesn't natively support metadata filtering easily in this implementation.
+            # We retrieve raw and then could filter manually, but for now we just retrieve.
+            self.bm25_retriever.k = self.top_k_retrieval
+            keyword_docs = self.bm25_retriever.invoke(query)
+
+            # Apply manual filtering to BM25 results if filters exist
+            if filters:
+                filtered_keyword_docs = []
+                for doc in keyword_docs:
+                    match = True
+                    for key, value in filters.items():
+                        if doc.metadata.get(key) != value:
+                            match = False
+                            break
+                    if match:
+                        filtered_keyword_docs.append(doc)
+                keyword_docs = filtered_keyword_docs
+
+            return keyword_docs
+
+        # Execute retrieval tasks concurrently
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor(max_workers=2) as executor:  # 2 workers for vector + keyword retrieval
+            vector_task = loop.run_in_executor(executor, retrieve_vector)
+            keyword_task = loop.run_in_executor(executor, retrieve_keyword)
+
+            vector_docs, keyword_docs = await asyncio.gather(vector_task, keyword_task)
+
+        logger.debug(f"Vector Store result count: {len(vector_docs)}")
+        logger.debug(f"BM25 result count: {len(keyword_docs)}")
 
         # 3. Fuse Results
         if self.use_rrf:
             fused_docs = self.ensemble.rank_fusion([vector_docs, keyword_docs])
+            logger.debug(f"RRF Fusion resulting in {len(fused_docs)} unique docs")
         else:
             # Simple fallback: Combine and deduplicate
             # Prioritize vector docs, then append unseen keyword docs
@@ -152,17 +189,20 @@ class HybridRetriever(BaseRetriever):
                 if doc.page_content not in seen_content:
                     fused_docs.append(doc)
                     seen_content.add(doc.page_content)
-        
-        # Limit candidates before re-ranking if we have too many? 
+
+        # Limit candidates before re-ranking if we have too many?
         # RRF already sorts them. We pass all to reranker up to a reasonable limit to save time?
         # Let's pass top_k_retrieval * 2 or just all of them if reasonable.
         # For safety/speed, let's limit to top_k_retrieval (e.g. 50) before reranking.
         candidates = fused_docs[:self.top_k_retrieval]
-        
+
         # 4. Re-rank
         if self.use_rerank:
+            logger.debug("Re-ranking candidates...")
             final_docs = self.reranker.rerank(query, candidates, top_k=top_k)
+            logger.info(f"Re-ranking complete. Returning {len(final_docs)} docs.")
         else:
             final_docs = candidates[:top_k]
-            
+            logger.info(f"Skipping re-ranking. Returning {len(final_docs)} docs.")
+
         return final_docs

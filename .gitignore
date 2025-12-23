@@ -127,3 +127,12 @@ logs/
 **/__pycache__/
 **/*.pyc
 **/*.pyo
+
+
+node_modules
+package-lock.json
+BEGINNER_GUIDE.md
+CODING_GUIDE.md
+/learn_and_ask.py
+/data/word
+/data/chat_history.json

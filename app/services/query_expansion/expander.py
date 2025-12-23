@@ -39,7 +39,9 @@ class QueryExpander:
             if original_query not in queries:
                 queries.append(original_query)
                 
-            return queries[:count+1] # Cap it slightly above count
+            final_queries = queries[:count+1]
+            logger.info(f"Query Expansion: Original='{original_query}' -> Expanded ({len(final_queries)})={final_queries}")
+            return final_queries
 
         except Exception as e:
             logger.error(f"Query expansion failed: {e}")
