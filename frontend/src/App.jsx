@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import { useChat } from './hooks/useChat';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import { Loader2 } from 'lucide-react';
 
-import SettingsPage from './components/SettingsPage';
+const SettingsPage = lazy(() => import('./components/SettingsPage'));
 
 function App() {
-  const [messages, setMessages] = useState([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const {
     submitMessage,
@@ -36,52 +36,60 @@ function App() {
   } = useChat();
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white overflow-hidden font-sans selection:bg-primary/30 relative">
-      {/* Background pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900/30 via-black/50 to-black"></div>
+    <ErrorBoundary>
+      <div className="flex h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white overflow-hidden font-sans selection:bg-primary/30 relative">
+        {/* Background pattern */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900/30 via-black/50 to-black"></div>
 
-      <Sidebar
-          sessions={sessions}
-          currentSessionId={currentSessionId}
-          onSwitchSession={switchSession}
-          onNewChat={createNewSession}
-          refreshSessions={refreshSessions}
-          mode={mode}
-          setMode={setMode}
-          provider={provider}
-          setProvider={setProvider}
-          useRag={useRag}
-          setUseRag={setUseRag}
-          customModel={customModel}
-          setCustomModel={setCustomModel}
-          availableModels={availableModels}
-          refreshModels={refreshModels}
-          onOpenSettings={() => setShowSettings(true)}
-       />
-
-       <main className="flex-1 relative flex flex-col h-full min-w-0 bg-gradient-to-b from-black/80 via-black to-black/90 backdrop-blur-sm">
-          <ChatArea
-            messages={chatMessages}
-            loading={isLoading}
-            onSend={submitMessage}
-            status={thinkingStatus}
+        <Sidebar
+            sessions={sessions}
+            currentSessionId={currentSessionId}
+            onSwitchSession={switchSession}
+            onNewChat={createNewSession}
+            refreshSessions={refreshSessions}
+            mode={mode}
+            setMode={setMode}
             provider={provider}
-            modelName={customModel}
-            input={input}
-            setInput={setInput}
-          />
+            setProvider={setProvider}
+            useRag={useRag}
+            setUseRag={setUseRag}
+            customModel={customModel}
+            setCustomModel={setCustomModel}
+            availableModels={availableModels}
+            refreshModels={refreshModels}
+            onOpenSettings={() => setShowSettings(true)}
+         />
 
-          {showSettings && (
-            <SettingsPage
-              onClose={() => setShowSettings(false)}
-              availableModels={availableModels}
-              refreshModels={refreshModels}
-              systemStatus={status} // Passing the status object from useChat
+         <main className="flex-1 relative flex flex-col h-full min-w-0 bg-gradient-to-b from-black/80 via-black to-black/90 backdrop-blur-sm">
+            <ChatArea
+              messages={chatMessages}
+              loading={isLoading}
+              onSend={submitMessage}
+              status={thinkingStatus}
+              provider={provider}
+              modelName={customModel}
+              input={input}
+              setInput={setInput}
             />
-          )}
 
-       </main>
-    </div>
+            {showSettings && (
+              <Suspense fallback={
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                   <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                </div>
+              }>
+                <SettingsPage
+                  onClose={() => setShowSettings(false)}
+                  availableModels={availableModels}
+                  refreshModels={refreshModels}
+                  systemStatus={status}
+                />
+              </Suspense>
+            )}
+
+         </main>
+      </div>
+    </ErrorBoundary>
   );
 }
 

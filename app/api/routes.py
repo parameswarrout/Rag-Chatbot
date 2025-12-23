@@ -235,7 +235,8 @@ async def delete_model(request: ModelDeleteRequest):
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            res = await client.delete(
+            res = await client.request(
+                "DELETE",
                 f"{base_url}/api/delete",
                 json={"name": request.name}
             )

@@ -5,7 +5,7 @@ import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { User, Bot, Server, FileText, ChevronDown, ChevronUp, Copy, RefreshCw } from 'lucide-react';
 import CitationDisplay from './CitationDisplay';
 
-const MessageBubble = ({ msg, loading, onRegenerate }) => {
+const MessageBubble = React.memo(({ msg, loading, onRegenerate }) => {
     const [showSources, setShowSources] = useState(false);
     const [copied, setCopied] = useState(false);
 
@@ -115,7 +115,6 @@ const MessageBubble = ({ msg, loading, onRegenerate }) => {
                             <CitationDisplay citations={msg.citations} />
                         )}
                     </div>
-
             )}
             </div>
 
@@ -126,6 +125,6 @@ const MessageBubble = ({ msg, loading, onRegenerate }) => {
             )}
         </div>
     );
-};
+});
 
 export default MessageBubble;
